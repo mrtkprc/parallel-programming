@@ -13,6 +13,8 @@
 
 #define OPENING_FILE "qr_basic_3.dat"
 
+#define SHMCHILDLIST 1
+
 int readFile(FILE **file,int *N,double **matrix);
 void writeMatrix(const double *matrix, const int *N);
 void divideMatrix(double **matrix,const int *N,double divider);
@@ -52,6 +54,7 @@ int readFile(FILE **file,int *N,double **matrix)
     char *foundNewLine;
     double line_val;
     int N_number;
+    
 
     while((read = getline(&line,&len,*file)) != -1)
 	{
@@ -82,11 +85,13 @@ int readFile(FILE **file,int *N,double **matrix)
 int main (int argc, char *argv[])
 {
     int i;
+    int my_order = -1;
     FILE *file;
     int N=0;
     double *matrix;
     pid_t f;
     pid_t *child_creation_list;
+    int shm_children_list_id; //shared memory children list id
 
     file = fopen(OPENING_FILE,"r");
     if(!file)
@@ -98,7 +103,10 @@ int main (int argc, char *argv[])
     //writeMatrix(matrix,&N);
     divideMatrix(&matrix,&N,255.0);
 
-    child_creation_list = (pid_t*)malloc(sizeof(pid_t) * N);
+    shm_children_list_id = shmget(SHMCHILDLIST,sizeof(pid_t)*N,0700|IPC_CREAT);
+    child_creation_list =(pid_t *)shmat(shm_children_list_id,0,0);
+
+    //child_creation_list = (pid_t*)malloc(sizeof(pid_t) * N);
     
     for (i = 0; i < N; i++)
 	{
@@ -119,10 +127,17 @@ int main (int argc, char *argv[])
 	{
         wait(0);
         printf("Parent Process ID: %u\n",getpid());
+        shmdt(child_creation_list);
+        shmctl(shm_children_list_id,IPC_RMID,0);
     }
     else
     {
         printf("My Process ID: %u and Parent ID : %u\n",getpid(),getppid());
+        for (i = 0; i < N; i++)
+            if (child_creation_list[i] == getpid())
+                my_order = i+1;
+        
+        printf("My order :%d\n",my_order);
         sleep(1);
     }
 
