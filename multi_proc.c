@@ -171,7 +171,8 @@ int main (int argc, char *argv[])
             snprintf(tmpLine,250,"%d",i+1);
             strcat(tmpLine,".dat");
             openFile(&file,"r",tmpLine);
-           
+            line = NULL;
+            len = 0;
             while((read = getline(&line,&len,file)) != -1)
 	        {
                 if(!strcmp(line,"\n"))

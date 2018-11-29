@@ -15,6 +15,8 @@
 #include <time.h>
 
 double *matrix;
+int N=0;
+
 
 
 int readFile(FILE **file,int *N,double **matrix);
@@ -98,8 +100,27 @@ int openFile(FILE **file,const char *opening_mode,const char *file_name)
 
 void *each_child_thread(void *arg)
 {
+    int i = 0;
     int thread_order = (int)arg;
-    printf("Thread val: %d\n",thread_order);
+    char tmpLine[250];
+    FILE *file_writing;
+    snprintf(tmpLine,250,"%d",thread_order+1);
+    strcat(tmpLine,".dat");
+    file_writing = fopen((const char*)tmpLine,"w");
+
+    for (i = thread_order * N; i < thread_order * N + N; i++)
+    {
+        if (file_writing == NULL) 
+        {
+            perror("fopen");
+            
+            exit(1);
+        }
+        fprintf(file_writing,"%f\n",pow(matrix[i],0.5));
+        fflush(file_writing);
+    }
+    
+    fclose(file_writing);
     pthread_exit(NULL);
 }
 
@@ -114,7 +135,6 @@ int main (int argc, char *argv[])
     int my_order = -1;
     FILE *file;
     FILE *file_writing;
-    int N=0;
     
     double *each_child_row;
     double val;
@@ -149,7 +169,7 @@ int main (int argc, char *argv[])
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr,PTHREAD_CREATE_JOINABLE);
     thread_list = (pthread_t*)malloc(sizeof(pthread_t)* N);
-    printf("Thread Creating\n");
+    
     
     for (i = 0; i < N; i++)
     {
@@ -170,70 +190,40 @@ int main (int argc, char *argv[])
             return EXIT_FAILURE;
         }
     }
-    printf("Threads Created\n");
-    pthread_exit(NULL);
-    
-
-    /*
-    if(f!=0) // Parent Proces
-	{
-        wait(0);
-        file_writing = fopen("result_multi_proc.dat","w");
-        if (file_writing == NULL) 
-        {
-            perror("fopen");
-            exit(1);
-        }
-        for (i = 0; i < N; i++)
-	    {
-            snprintf(tmpLine,250,"%d",i+1);
-            strcat(tmpLine,".dat");
-            openFile(&file,"r",tmpLine);
-           
-            while((read = getline(&line,&len,file)) != -1)
-	        {
-                if(!strcmp(line,"\n"))
-                    break;
-                fprintf(file_writing,"%s",line);
-                //printf("Each file :%s");
-                fflush(file_writing);
-            }
-            fclose(file);
-        }
-        fclose(file_writing);
-        end = clock();
-        printf("The Elapsed Time: %f\n",(((double) (end - start)) / CLOCKS_PER_SEC));
-        
-    }
-    else
+    file_writing = fopen("result_multi_thrd.dat","w");
+    if (file_writing == NULL) 
     {
-        //printf("My Process ID: %u and Parent ID : %u\n",getpid(),getppid());
-        for (i = 0; i < N; i++)
-            if (child_creation_list[i] == getpid())
-                my_order = i;
-        
-        for (i = 0; i < N; i++)
-            *(each_child_row + i) = pow(matrix[my_order*N+i],0.5);
-
-        snprintf(tmpLine,250,"%d",my_order+1);
-        strcat(tmpLine,".dat");
-        //printf("file name: %s\n",tmpLine);
-        file_writing = fopen((const char*)tmpLine,"w");
-        if (file_writing == NULL) 
-        {
-            perror("fopen");
-            exit(1);
-        }
-        
-        for (i = 0; i < N; i++)
-            fprintf(file_writing,"%f\n",*(each_child_row + i));
-        
-        fflush(file_writing);
-        fclose(file_writing);
-
-        sleep(1);
-        wait(0);
+        perror("fopen");
+        exit(1);
     }
-    */
-   return 0;
+    
+    for (i = 0; i < N; i++)
+	{
+        snprintf(tmpLine,250,"%d",i+1);
+        strcat(tmpLine,".dat");
+        file = NULL;
+        openFile(&file,"r",tmpLine);
+        if(file == NULL)   
+        {
+            printf("file opening error\n");
+            return EXIT_FAILURE;
+        }
+        line = NULL;
+        len = 0;
+        while((read = getline(&line,&len,file)) != -1)
+	    {
+            if(!strcmp(line,"\n"))
+                break;
+            fprintf(file_writing,"%s",line);
+            fflush(file_writing);
+        }
+        fclose(file);
+    }
+    
+    fclose(file_writing);
+    end = clock();
+    printf("The Elapsed Time: %f\n",(((double) (end - start)) / CLOCKS_PER_SEC));
+    pthread_exit(NULL);
+
+    return 0;
 }
