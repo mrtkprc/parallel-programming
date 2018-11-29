@@ -1,10 +1,5 @@
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <sys/sem.h>
 #include <sys/types.h>
-#include <sys/wait.h>
 #include <sys/errno.h>
-#include <signal.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -15,7 +10,6 @@
 
 #define OPENING_FILE "qr_code_64x64_grayscale.dat"
 
-#define SHMCHILDLIST 1
 
 int readFile(FILE **file,int *N,double **matrix);
 void writeMatrix(const double *matrix, const int *N);
@@ -108,10 +102,7 @@ int main (int argc, char *argv[])
     FILE *file_writing;
     int N=0;
     double *matrix;
-    pid_t f;
-    pid_t *child_creation_list;
-    int shm_children_list_id; //shared memory children list id
-    double *each_child_row;
+    double *data_list;
     double val;
 
     if(argc != 2)
@@ -137,85 +128,20 @@ int main (int argc, char *argv[])
     divideMatrix(&matrix,&N,255.0);
     //writeMatrix(matrix,&N);
 
-    shm_children_list_id = shmget(SHMCHILDLIST,sizeof(pid_t)*N,0700|IPC_CREAT);
-    child_creation_list =(pid_t *)shmat(shm_children_list_id,0,0);
+    for (i = 0; i < N * N; i++)
+            matrix[i] = pow(matrix[i],0.5);
 
-    each_child_row = (double *)malloc(sizeof(double)*N);
-
-    for (i = 0; i < N; i++)
-	{
-		f = fork();
-		if(f<0)
-		{
-			printf("Process Creation Error\n");
-			sleep(2);
-			exit(1);
-		}
-		else if (f>0)
-            child_creation_list[i] = f; //Add child pid in order
-		else
-            break; //So that other children exit
-	}
-
-    if(f!=0) // Parent Proces
-	{
-        wait(0);
-        file_writing = fopen("result_multi_proc.dat","w");
-        if (file_writing == NULL) 
-        {
-            perror("fopen");
-            exit(1);
-        }
-        for (i = 0; i < N; i++)
-	    {
-            snprintf(tmpLine,250,"%d",i+1);
-            strcat(tmpLine,".dat");
-            openFile(&file,"r",tmpLine);
-           
-            while((read = getline(&line,&len,file)) != -1)
-	        {
-                if(!strcmp(line,"\n"))
-                    break;
-                fprintf(file_writing,"%s",line);
-                //printf("Each file :%s");
-                fflush(file_writing);
-            }
-            fclose(file);
-        }
-        fclose(file_writing);
-        end = clock();
-        printf("The Elapsed Time: %f\n",(((double) (end - start)) / CLOCKS_PER_SEC));
-        
-        shmdt(child_creation_list);
-        shmctl(shm_children_list_id,IPC_RMID,0);
-    }
-    else
+    file_writing = fopen("result_single_proc.dat","w");
+    if (file_writing == NULL) 
     {
-        //printf("My Process ID: %u and Parent ID : %u\n",getpid(),getppid());
-        for (i = 0; i < N; i++)
-            if (child_creation_list[i] == getpid())
-                my_order = i;
-        
-        for (i = 0; i < N; i++)
-            *(each_child_row + i) = pow(matrix[my_order*N+i],0.5);
-
-        snprintf(tmpLine,250,"%d",my_order+1);
-        strcat(tmpLine,".dat");
-        //printf("file name: %s\n",tmpLine);
-        file_writing = fopen((const char*)tmpLine,"w");
-        if (file_writing == NULL) 
-        {
-            perror("fopen");
-            exit(1);
-        }
-        
-        for (i = 0; i < N; i++)
-            fprintf(file_writing,"%f\n",*(each_child_row + i));
-        
-        fflush(file_writing);
-        fclose(file_writing);
-
-        sleep(1);
-        wait(0);
+        perror("fopen");
+        exit(1);
     }
+    for (i = 0; i < N * N; i++)
+        fprintf(file_writing,"%f\n",matrix[i]);
+
+    fclose(file_writing);
+    end = clock();
+
+    printf("The Elapsed Time: %f\n",(((double) (end - start)) / CLOCKS_PER_SEC));
 }
