@@ -11,8 +11,9 @@
 #include <string.h>
 #include <limits.h>
 #include <math.h>
+#include <time.h>
 
-#define OPENING_FILE "qr_basic_3.dat"
+#define OPENING_FILE "qr_code_64x64_grayscale.dat"
 
 #define SHMCHILDLIST 1
 
@@ -90,13 +91,14 @@ int openFile(FILE **file,const char *opening_mode,const char *file_name)
         printf("File %s failed\n",file_name);
         return -1;
     }
-    printf("File %s opened\n",file_name);
+    //printf("File %s opened\n",file_name);
     return 0;
 }
 
 int main (int argc, char *argv[])
 {
     int i,k;
+    clock_t start,end;
     char *line;
     int read;
     size_t len;
@@ -112,7 +114,15 @@ int main (int argc, char *argv[])
     double *each_child_row;
     double val;
 
-    openFile(&file,"r",OPENING_FILE);
+    if(argc != 2)
+    {
+        printf("Please, use following format\n");
+        printf("<./exe_name> <source dat file>\n");
+        return EXIT_FAILURE;
+    }
+
+    start = clock();
+    openFile(&file,"r",argv[1]);
     
     if(!file)
     {
@@ -173,14 +183,15 @@ int main (int argc, char *argv[])
             fclose(file);
         }
         fclose(file_writing);
+        end = clock();
+        printf("The Elapsed Time: %f\n",(((double) (end - start)) / CLOCKS_PER_SEC));
         
-        printf("The End\n");
         shmdt(child_creation_list);
         shmctl(shm_children_list_id,IPC_RMID,0);
     }
     else
     {
-        printf("My Process ID: %u and Parent ID : %u\n",getpid(),getppid());
+        //printf("My Process ID: %u and Parent ID : %u\n",getpid(),getppid());
         for (i = 0; i < N; i++)
             if (child_creation_list[i] == getpid())
                 my_order = i;
@@ -190,7 +201,7 @@ int main (int argc, char *argv[])
 
         snprintf(tmpLine,250,"%d",my_order+1);
         strcat(tmpLine,".dat");
-        printf("file name: %s\n",tmpLine);
+        //printf("file name: %s\n",tmpLine);
         file_writing = fopen((const char*)tmpLine,"w");
         if (file_writing == NULL) 
         {
