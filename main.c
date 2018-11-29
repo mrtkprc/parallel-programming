@@ -20,7 +20,6 @@ int readFile(FILE **file,int *N,double **matrix);
 void writeMatrix(const double *matrix, const int *N);
 void divideMatrix(double **matrix,const int *N,double divider);
 int openFile(FILE **file,const char *opening_mode,const char *file_name);
-void write2File(FILE **file);
 
 //
 void divideMatrix(double **matrix,const int *N,double divider)
@@ -95,17 +94,12 @@ int openFile(FILE **file,const char *opening_mode,const char *file_name)
     return 0;
 }
 
-void write2File(FILE **file)
-{
-    printf("file writing starting\n");
-    fprintf(*file,"mert\n");
-    fflush(*file);
-    printf("file writing starting\n");
-
-}
 int main (int argc, char *argv[])
 {
-    int i;
+    int i,k;
+    char *line;
+    int read;
+    size_t len;
     char tmpLine[250];
     int my_order = -1;
     FILE *file;
@@ -156,6 +150,30 @@ int main (int argc, char *argv[])
     if(f!=0) // Parent Proces
 	{
         wait(0);
+        file_writing = fopen("result.dat","w");
+        if (file_writing == NULL) 
+        {
+            perror("fopen");
+            exit(1);
+        }
+        for (i = 0; i < N; i++)
+	    {
+            snprintf(tmpLine,250,"%d",i+1);
+            strcat(tmpLine,".dat");
+            openFile(&file,"r",tmpLine);
+           
+            while((read = getline(&line,&len,file)) != -1)
+	        {
+                if(!strcmp(line,"\n"))
+                    break;
+                fprintf(file_writing,"%s",line);
+                //printf("Each file :%s");
+                fflush(file_writing);
+            }
+            fclose(file);
+        }
+        fclose(file_writing);
+        
         printf("The End\n");
         shmdt(child_creation_list);
         shmctl(shm_children_list_id,IPC_RMID,0);
