@@ -15,8 +15,18 @@
 
 int readFile(FILE **file,int *N,double **matrix);
 void writeMatrix(const double *matrix, const int *N);
+void divideMatrix(double **matrix,const int *N,double divider);
 
 //
+void divideMatrix(double **matrix,const int *N,double divider)
+{
+    int i,k;
+    double val;
+    for(i = 0; i < *N ;i++)
+        for(k = 0; k < *N ;k++)
+            *((*matrix)+((i+1)*k)) = (*((*matrix)+((i+1)*k))) / divider;
+}
+
 void writeMatrix(const double *matrix, const int *N)
 {
     int i,k;
@@ -71,16 +81,51 @@ int readFile(FILE **file,int *N,double **matrix)
 
 int main (int argc, char *argv[])
 {
+    int i;
     FILE *file;
     int N=0;
     double *matrix;
-    file = fopen(OPENING_FILE,"r");
+    pid_t f;
+    pid_t *child_creation_list;
 
+    file = fopen(OPENING_FILE,"r");
     if(!file)
     {
 		printf("Input file cannot be opened\n");
 		exit(1);
     }
     readFile(&file,&N,&matrix);
-    writeMatrix(matrix,&N);
+    //writeMatrix(matrix,&N);
+    divideMatrix(&matrix,&N,255.0);
+
+    child_creation_list = (pid_t*)malloc(sizeof(pid_t) * N);
+    
+    for (i = 0; i < N; i++)
+	{
+		f = fork();
+		if(f<0)
+		{
+			printf("Process Creation Error\n");
+			sleep(2);
+			exit(1);
+		}
+		else if (f>0)
+            child_creation_list[i] = f; //Add child pid in order
+		else
+            break; //So that other children exit
+	}
+
+    if(f!=0) // Parent Proces
+	{
+        wait(0);
+        printf("Parent Process ID: %u\n",getpid());
+    }
+    else
+    {
+        printf("My Process ID: %u and Parent ID : %u\n",getpid(),getppid());
+        sleep(1);
+    }
+
+
+
 }
